@@ -4,140 +4,68 @@
 
 const OPENAI_API_URL = '/api/openai-proxy';
 
-const INSTRUCTION_SET = `:brain: Sky Sports Raw Data → Structured Table Conversion: Full Instruction Set for AI
-:dart: GOAL
-To teach an AI how to convert unstructured raw schedule data (from Sky UK listings) into a structured, formatted table with precision, context-awareness, and consistency using standardized conventions and real-world logic.
-:inbox_tray: INPUT FORMAT (RAW DATA)
-Raw data looks like this:
-Thu 22nd May
-Football
-Livingston 20:00 Ross County
-Scottish Premier Play-offs - Final, Sky Sports Football (19:30)
-Cricket
-England vs Zimbabwe - One-off Test
-Men's Test match, Sky Sports Main Event (10:00), Sky Sports Cricket (10:00)
-It typically includes:
-- Day and date header
-- Sport headers (e.g., Football, Cricket, Rugby)
-- Event lines: Matchups with times or without
-- Descriptions: Competition name + channel(s) + possible alternate time(s)
-:outbox_tray: OUTPUT FORMAT (TABLE)
-The target is a tabular format like below, with exactly 11 columns:
-Date Day Sky UK Linear Event Type Start Time End Time
-- Always four empty columns between Event Type and Start Time (used as spacing slots)
-- Times are in HH:MM:SS format
-- Channels are ignored
-- Events retain original order
-:jigsaw: STEP-BY-STEP CONVERSION LOGIC
-1. Date Parsing
-Look for lines like:
-Thu 22nd May → becomes
-- Date: 22 May 2025 (Assume current year if not given)
-- Day: Thu
-Keep this value active until a new date appears in the raw data.
-2. Event Group Detection
-The model should detect headers like:
-Football, Cricket, Golf, Tennis, Rugby League, Rugby Union, Netball, Formula 1, etc.
-This sets context for how events should be formatted and durations inferred.
-3. Event Line Extraction
-Examples:
-Livingston 20:00 Ross County
-England vs Zimbabwe - One-off Test
-Tag Heuer Monaco Grand Prix - Race
-Premier League Darts Play-Offs - London
-Event lines can:
-- Contain time (e.g. 13:01)
-- Be a full sentence with vs, hyphens, or naming conventions
-4. Supporting Info / Time Source
-Often on the next line, there's detail with a channel and alternate time:
-Scottish Premier Play-offs - Final, Sky Sports Football (19:30)
-This may give:
-- Start time (if match line didn't)
-- Better time to use (apply earliest time rule)
-- Tour or competition name (for use in naming convention)
-:clock4: TIME LOGIC & ROUNDING RULES
-A. Use the earliest of all listed times.
-Example:
-Match listed at 13:01, description gives 12:00 → use 12:00
-If 14:50 and 15:00 are listed → use 14:50
-If 14:59 and 15:01 → round to 15:00
-B. Event Durations (Estimate)
-Sport Event Type Duration
-Football All matches 2 hours
-Cricket T20 3 hours
-Cricket ODI 5 hours
-Cricket Test / One-off Test 8 hours
-Rugby Any 2 hours
-Tennis Multi-event blocks 4.5 hours
-Golf Any 5 hours
-Formula 1 Race 2 hours
-Formula 1 Practice/Quali 1 hour
-Darts Premier League 3 hours
-Netball Match 2 hours
-:receipt: EVENT NAME FORMATTING RULES
-:tennis: Tennis
-Merge multiple tours into one line:
-Tennis: ATP Tour 500 Hamburg, ATP Tour 250 Geneva, WTA Tour 500 Strasbourg, WTA 250 Rabat
-:cricket_bat_and_ball: Cricket
-Use "Cricket: [Team A] v [Team B]"
-If the format is crucial (like Test, T20, ODI), add in brackets:
-Cricket: England v Zimbabwe (One-off Test)
-Cricket: England v West Indies (ODI)
-:rugby_ball: Rugby
-Label by sport:
-Rugby: Huddersfield Giants v Leigh Leopards
-Rugby: Queensland v New South Wales
-:football2: Football
-Simple match phrasing:
-Football: Livingston v Ross County
-:golf: Golf
-Use the format:
-Golf: [Tour]: [Event Name]
-Examples:
-Golf: DP World Tour: Soudal Open
-Golf: LPGA Tour: U.S. Women's Open
-Golf: PGA Tour: The Memorial Tournament
-:racing_car: Formula Racing
-Split Formula 1 and Formula 2 into separate events, each with colon:
-Formula 1: Aramco Spanish Grand Prix - Race
-Formula 2: Spanish Grand Prix - Feature Race
-:checkered_flag: IndyCar and Other Motorsports
-Always include colon after sport type:
-IndyCar: Indianapolis 500
-NASCAR: Coca-Cola 600
-MotoGP: Italian Grand Prix
-:no_entry_symbol: EXCLUSION RULES
-- COMPLETELY REMOVE any events labeled as "Other Sports" - do not include them in output
-- Do not use "Other Sports:" as a category - split into specific sport types with colons
-:drawing_pin: KEY RULES SUMMARY
-- Keep original data order — never reorder chronologically.
-- Omit channel names completely.
-- Use earliest time listed, round 1–2 minute differences.
-- Apply naming formats strictly (e.g., "Golf: PGA Tour: Event").
-- Insert 4 blank columns between Event Type and Start Time.
-- Output must match the fixed column format.
-- CRUCIAL: Only use the USER INPUT section for generating the table. Do not use any example data or previous examples. 
-- ONLY GENERATE SOMETHING IF YOU HAVE THE RAW DATA AND USE THAT WITH YOUR FORMATTING TO MAKE THE TABLE
-- Please dont make a table will random data or completely irrlevant data, minor changes are still to be undestood and converted
-Return JSON with events array. Each event should have:
-{
- "events": [
- {
- "date": "DD MMM YYYY",
- "day": "3-letter weekday",
- "skyDE": "Sky UK",
- "linear": "Linear",
- "eventType": "formatted event name per rules above",
- "startTime": "HH:MM:SS",
- "endTime": "HH:MM:SS"
-...
-CRITICAL: Return ONLY valid JSON, no other text. Follow these formatting, logic, and display rules with complete consistency.
+const INSTRUCTION_SET = `You are an expert at converting raw Sky Sports UK schedule data into a structured table for Google Sheets.
 
-If the input does not look like valid Sky Sports schedule data (e.g., it does not contain sports, dates, or event listings), return an empty events array: {"events": []}
- }
- ]
+INSTRUCTIONS:
+- Only use the USER INPUT section below for generating the table.
+- Do NOT use any example data or previous examples, even if the input is empty or unclear.
+- If the input does not look like valid Sky Sports schedule data (e.g., it does not contain sports, dates, or event listings), return: {"events": []}
+- Output ONLY valid JSON as described below, and nothing else.
+
+DATA FORMATTING RULES:
+- Parse the date and day from lines like "Fri 23rd May".
+- Detect sport headers (e.g., Football, Cricket, Formula 1, Tennis, etc.).
+- Extract event lines and supporting info (times, descriptions).
+- Use the earliest time listed for each event.
+- Estimate event durations by sport (see below).
+- Format event names as per the rules below.
+- Omit channel names completely.
+- Keep the original order of events.
+- Output a table with exactly 11 columns: Date, Day, Sky UK, Linear, Event Type, [4 empty columns], Start Time, End Time.
+- Insert 4 empty columns between Event Type and Start Time.
+- Times must be in HH:MM:SS format.
+- Use "Sky UK" for the Sky UK column and "Linear" for the Linear column.
+
+EVENT NAME FORMATTING:
+- Football: "Football: [Team A] v [Team B]"
+- Cricket: "Cricket: [Team A] v [Team B] (Format)" if format is present
+- Tennis: "Tennis: [Event List]" (merge multiple tours into one line, no 'Live Tennis:' prefix)
+- Golf: "Golf: [Tour]: [Event Name]"
+- Formula 1: "Formula 1: [Event Name]"
+- Netball NSL: Use "NSL:" (not "Netball: NSL")
+- For other sports, use "[Sport]: [Event Name]"
+
+EVENT DURATION ESTIMATES:
+- Football: 2 hours
+- Cricket T20: 3 hours
+- Cricket ODI: 5 hours
+- Cricket Test/One-off Test: 8 hours
+- Rugby: 2 hours
+- Tennis: 4.5 hours
+- Golf: 5 hours
+- Formula 1 Race: 2 hours
+- Formula 1 Practice/Quali: 1 hour
+- Darts Premier League: 3 hours
+- Netball Match: 2 hours
+
+OUTPUT FORMAT:
+Return ONLY valid JSON in this format:
+{
+  "events": [
+    {
+      "date": "DD MMM YYYY",
+      "day": "3-letter weekday",
+      "skyDE": "Sky UK",
+      "linear": "Linear",
+      "eventType": "formatted event name per rules above",
+      "startTime": "HH:MM:SS",
+      "endTime": "HH:MM:SS"
+    }
+  ]
 }
-CRITICAL: Return ONLY valid JSON, no other text. Follow these formatting, logic, and display rules with complete consistency.`;
+
+USER INPUT:
+[USER_INPUT_HERE]`;
 
 // DOM Elements
 const rawDataInput = document.getElementById('raw-data-input');
