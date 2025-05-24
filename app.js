@@ -295,7 +295,7 @@ function extractEvents(text) {
 async function generateTable(rawData) {
     const prompt = `${INSTRUCTION_SET}\n\nRAW DATA:\n${rawData}\n`;
     const body = {
-        model: "gpt-3.5-turbo",
+        model: "gpt-4-0125-preview",
         messages: [
             { role: "system", content: "You are a helpful assistant that strictly follows formatting and logic rules for table conversion." },
             { role: "user", content: prompt }
