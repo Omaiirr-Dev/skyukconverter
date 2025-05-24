@@ -116,6 +116,9 @@ MotoGP: Italian Grand Prix
 - Apply naming formats strictly (e.g., "Golf: PGA Tour: Event").
 - Insert 4 blank columns between Event Type and Start Time.
 - Output must match the fixed column format.
+- CRUCIAL: Only use the USER INPUT section for generating the table. Do not use any example data or previous examples. 
+- ONLY GENERATE SOMETHING IF YOU HAVE THE RAW DATA AND USE THAT WITH YOUR FORMATTING TO MAKE THE TABLE
+- Please dont make a table will random data or completely irrlevant data, minor changes are still to be undestood and converted
 Return JSON with events array. Each event should have:
 {
  "events": [
