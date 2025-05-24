@@ -1,0 +1,9 @@
+{
+  "name": "skyuk-openai-proxy",
+  "version": "1.0.0",
+  "main": "api/openai.js",
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.30.0"
+  }
+} 
