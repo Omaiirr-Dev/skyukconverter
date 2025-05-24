@@ -127,6 +127,10 @@ Return JSON with events array. Each event should have:
  "eventType": "formatted event name per rules above",
  "startTime": "HH:MM:SS",
  "endTime": "HH:MM:SS"
+...
+CRITICAL: Return ONLY valid JSON, no other text. Follow these formatting, logic, and display rules with complete consistency.
+
+If the input does not look like valid Sky Sports schedule data (e.g., it does not contain sports, dates, or event listings), return an empty events array: {"events": []}
  }
  ]
 }
